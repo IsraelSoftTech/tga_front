@@ -1,0 +1,72 @@
+.admin-prayers-page {
+  padding-top: 70px;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.admin-prayers-section {
+  padding: 3rem 0;
+}
+
+.admin-page-header {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.admin-page-header h1 {
+  font-size: 2rem;
+  color: #22c55e;
+  margin: 0 0 0.5rem 0;
+}
+
+.admin-page-header p {
+  color: #666;
+  margin: 0;
+}
+
+.admin-page-content {
+  background: white;
+  padding: 4rem 2rem;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-placeholder {
+  text-align: center;
+  color: #999;
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  color: #22c55e;
+  margin-bottom: 1rem;
+}
+
+.admin-placeholder h2 {
+  font-size: 1.5rem;
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.admin-placeholder p {
+  color: #999;
+  font-size: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .admin-page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .admin-page-content {
+    padding: 2rem 1rem;
+  }
+}

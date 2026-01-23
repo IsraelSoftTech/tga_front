@@ -1,0 +1,373 @@
+// API Configuration and Endpoints
+// Automatically detect environment and set API URL
+const getApiBaseUrl = () => {
+  // Priority 1: Use explicit environment variable if set
+  if (process.env.REACT_APP_API_URL) {
+    console.log('🌐 Using API URL from environment variable:', process.env.REACT_APP_API_URL);
+    return process.env.REACT_APP_API_URL;
+  }
+  
+  // Priority 2: Detect environment based on current hostname
+  const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
+  
+  // Production environment (towngreen.onrender.com)
+  if (hostname === 'towngreen.onrender.com' || hostname.includes('towngreen.onrender.com')) {
+    const apiUrl = 'https://api.farmsolutionss.com/api';
+    console.log('🌐 Production mode detected. Using API:', apiUrl);
+    return apiUrl;
+  }
+  
+  // Development environment (localhost)
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+    const apiUrl = 'http://localhost:5000/api';
+    console.log('🌐 Development mode detected. Using API:', apiUrl);
+    return apiUrl;
+  }
+  
+  // Default to production for safety
+  const apiUrl = 'https://api.farmsolutionss.com/api';
+  console.log('🌐 Default mode. Using production API:', apiUrl);
+  return apiUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Log the API configuration (helpful for debugging)
+console.log('📡 API Base URL:', API_BASE_URL);
+console.log('📍 Current hostname:', window.location.hostname);
+
+// Helper function to make API requests
+async function apiRequest(endpoint, options = {}) {
+  const url = `${API_BASE_URL}${endpoint}`;
+  
+  const defaultOptions = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // Include cookies for authentication
+  };
+
+  // Add authorization token if available (but not for login endpoint)
+  const token = localStorage.getItem('authToken');
+  if (token && !endpoint.includes('/auth/login')) {
+    defaultOptions.headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const config = {
+    ...defaultOptions,
+    ...options,
+    headers: {
+      ...defaultOptions.headers,
+      ...options.headers,
+    },
+  };
+
+  try {
+    const response = await fetch(url, config);
+    
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(text || 'Invalid response from server');
+    }
+
+    const data = await response.json();
+
+    // Handle errors
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('API Request Error:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// AUTHENTICATION API
+// ============================================
+
+export const authAPI = {
+  // Admin login
+  login: async (username, password) => {
+    // Don't use apiRequest for login to avoid adding Authorization header
+    const url = `${API_BASE_URL}/auth/login`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+      body: JSON.stringify({ username, password }),
+    });
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(text || 'Invalid response from server');
+    }
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      // Handle different response formats (message or error field)
+      const errorMessage = data.message || data.error || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+    
+    // Handle both success formats
+    if (data.success === false) {
+      const errorMessage = data.message || data.error || 'Login failed';
+      throw new Error(errorMessage);
+    }
+    
+    return data;
+  },
+
+  // Admin logout
+  logout: async () => {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+    return apiRequest('/auth/logout', {
+      method: 'POST',
+    });
+  },
+
+  // Check if user is authenticated
+  checkAuth: async () => {
+    return apiRequest('/auth/check');
+  },
+};
+
+// ============================================
+// SERMONS API
+// ============================================
+
+export const sermonsAPI = {
+  // Get all sermons
+  getAll: async () => {
+    return apiRequest('/sermons');
+  },
+
+  // Get sermon by ID
+  getById: async (id) => {
+    return apiRequest(`/sermons/${id}`);
+  },
+
+  // Create sermon (admin only)
+  create: async (sermonData) => {
+    return apiRequest('/sermons', {
+      method: 'POST',
+      body: JSON.stringify(sermonData),
+    });
+  },
+
+  // Update sermon (admin only)
+  update: async (id, sermonData) => {
+    return apiRequest(`/sermons/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(sermonData),
+    });
+  },
+
+  // Delete sermon (admin only)
+  delete: async (id) => {
+    return apiRequest(`/sermons/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Like sermon
+  like: async (sermonId) => {
+    return apiRequest(`/sermons/${sermonId}/like`, {
+      method: 'POST',
+    });
+  },
+
+  // Love sermon
+  love: async (sermonId) => {
+    return apiRequest(`/sermons/${sermonId}/love`, {
+      method: 'POST',
+    });
+  },
+
+  // Get comments for sermon
+  getComments: async (sermonId) => {
+    return apiRequest(`/sermons/${sermonId}/comments`);
+  },
+
+  // Add comment to sermon
+  addComment: async (sermonId, comment) => {
+    return apiRequest(`/sermons/${sermonId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ text: comment }),
+    });
+  },
+};
+
+// ============================================
+// PRAYER REQUESTS API
+// ============================================
+
+export const prayersAPI = {
+  // Submit prayer request
+  submit: async (prayerData) => {
+    return apiRequest('/prayers', {
+      method: 'POST',
+      body: JSON.stringify(prayerData),
+    });
+  },
+
+  // Get all prayer requests (admin only)
+  getAll: async () => {
+    return apiRequest('/prayers');
+  },
+};
+
+// ============================================
+// CONTACT MESSAGES API
+// ============================================
+
+export const contactAPI = {
+  // Submit contact message
+  submit: async (messageData) => {
+    return apiRequest('/contact', {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  },
+
+  // Get all messages (admin only)
+  getAll: async () => {
+    return apiRequest('/contact');
+  },
+};
+
+// ============================================
+// MEMBERSHIP API
+// ============================================
+
+export const membershipAPI = {
+  // Submit membership application
+  submit: async (applicationData) => {
+    return apiRequest('/membership', {
+      method: 'POST',
+      body: JSON.stringify(applicationData),
+    });
+  },
+
+  // Get all applications (admin only)
+  getAll: async () => {
+    return apiRequest('/membership');
+  },
+};
+
+// ============================================
+// TESTIMONIES API
+// ============================================
+
+export const testimoniesAPI = {
+  // Get all testimonies
+  getAll: async () => {
+    return apiRequest('/testimonies');
+  },
+
+  // Submit testimony
+  submit: async (testimonyData) => {
+    return apiRequest('/testimonies', {
+      method: 'POST',
+      body: JSON.stringify(testimonyData),
+    });
+  },
+};
+
+// ============================================
+// PROGRAMS API
+// ============================================
+
+export const programsAPI = {
+  // Get all programs
+  getAll: async () => {
+    return apiRequest('/programs');
+  },
+};
+
+// ============================================
+// HOME CONTENT API
+// ============================================
+
+export const homeAPI = {
+  // Get all home content
+  getContent: async () => {
+    return apiRequest('/home/content');
+  },
+
+  // Update home content
+  updateContent: async (sectionName, contentKey, contentValue, contentType = 'text', displayOrder = 0) => {
+    return apiRequest('/home/content', {
+      method: 'POST',
+      body: JSON.stringify({
+        section_name: sectionName,
+        content_key: contentKey,
+        content_value: contentValue,
+        content_type: contentType,
+        display_order: displayOrder
+      }),
+    });
+  },
+
+  // Delete home content
+  deleteContent: async (contentId, contentValue) => {
+    return apiRequest('/home/content/delete', {
+      method: 'POST',
+      body: JSON.stringify({
+        content_id: contentId,
+        content_value: contentValue
+      }),
+    });
+  },
+
+  // Upload file/image
+  uploadFile: async (file, fileName, subDir = 'images') => {
+    return apiRequest('/home/upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        file: file,
+        fileName: fileName,
+        subDir: subDir
+      }),
+    });
+  },
+};
+
+// ============================================
+// HEALTH CHECK API
+// ============================================
+
+export const healthAPI = {
+  // Check server health
+  check: async () => {
+    return apiRequest('/health');
+  },
+
+  // Test database connection
+  testDb: async () => {
+    return apiRequest('/test-db');
+  },
+};
+
+// Export default API object
+export default {
+  auth: authAPI,
+  sermons: sermonsAPI,
+  prayers: prayersAPI,
+  contact: contactAPI,
+  membership: membershipAPI,
+  testimonies: testimoniesAPI,
+  programs: programsAPI,
+  health: healthAPI,
+};
