@@ -8,6 +8,9 @@ import {
   FaUserFriends, 
   FaHandsHelping,
   FaPrayingHands,
+  FaThumbsUp,
+  FaHeart,
+  FaComment,
   FaMapMarkerAlt,
   FaPhone,
   FaEnvelope,
@@ -15,7 +18,7 @@ import {
 } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { homeAPI } from '../api';
+import { homeAPI, galleryAPI } from '../api';
 import './Home.css';
 
 // Hero Section Component with Slideshow
@@ -85,43 +88,249 @@ const GallerySection = ({ content, getValue }) => {
     galleryItems = [];
   }
 
+  const [reactions, setReactions] = useState({}); // { itemUrl: { likes: 0, loves: 0, userLiked: false, userLoved: false } }
+  const [comments, setComments] = useState({}); // { itemUrl: [comments] }
+  const [selectedItem, setSelectedItem] = useState(null); // For comment modal
+  const [newComment, setNewComment] = useState('');
+  const [commentAuthor, setCommentAuthor] = useState('');
+  const [loadingReactions, setLoadingReactions] = useState({});
+
+  // Load reactions and comments for all items
+  useEffect(() => {
+    galleryItems.forEach((item) => {
+      loadReactions(item.url);
+      loadComments(item.url);
+    });
+  }, [galleryJson]);
+
+  const loadReactions = async (itemUrl) => {
+    try {
+      const response = await galleryAPI.getReactions(itemUrl);
+      if (response.success) {
+        setReactions(prev => ({
+          ...prev,
+          [itemUrl]: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading reactions:', error);
+    }
+  };
+
+  const loadComments = async (itemUrl) => {
+    try {
+      const response = await galleryAPI.getComments(itemUrl);
+      if (response.success) {
+        setComments(prev => ({
+          ...prev,
+          [itemUrl]: response.data
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading comments:', error);
+    }
+  };
+
+  const handleLike = async (e, itemUrl) => {
+    e.stopPropagation();
+    if (loadingReactions[itemUrl]) return;
+    
+    setLoadingReactions(prev => ({ ...prev, [itemUrl]: true }));
+    try {
+      await galleryAPI.like(itemUrl);
+      await loadReactions(itemUrl);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setLoadingReactions(prev => ({ ...prev, [itemUrl]: false }));
+    }
+  };
+
+  const handleLove = async (e, itemUrl) => {
+    e.stopPropagation();
+    if (loadingReactions[itemUrl]) return;
+    
+    setLoadingReactions(prev => ({ ...prev, [itemUrl]: true }));
+    try {
+      await galleryAPI.love(itemUrl);
+      await loadReactions(itemUrl);
+    } catch (error) {
+      console.error('Error toggling love:', error);
+    } finally {
+      setLoadingReactions(prev => ({ ...prev, [itemUrl]: false }));
+    }
+  };
+
+  const handleCommentSubmit = async (e, itemUrl) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    try {
+      await galleryAPI.addComment(itemUrl, newComment.trim(), commentAuthor.trim() || 'Anonymous');
+      setNewComment('');
+      setCommentAuthor('');
+      await loadComments(itemUrl);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
+  const getReactions = (itemUrl) => {
+    return reactions[itemUrl] || { likes: 0, loves: 0, userLiked: false, userLoved: false };
+  };
+
+  const getComments = (itemUrl) => {
+    return comments[itemUrl] || [];
+  };
+
   if (galleryItems.length === 0) {
     return null; // Don't show gallery if no items
   }
 
   return (
-    <section id="gallery" className="gallery-section">
-      <div className="container">
-        <div className="section-header">
-          <h2 className="section-title">{getValue('gallery', 'title', 'Church Gallery')}</h2>
-          <div className="title-underline"></div>
-        </div>
-        <div className="gallery-grid">
-          {galleryItems.map((item, index) => (
-            <div key={index} className="gallery-item">
-              {item.type === 'video' ? (
-                <div className="gallery-video">
-                  <iframe
-                    src={item.url}
-                    title={`Gallery video ${index + 1}`}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-              ) : (
-                <div className="gallery-image">
-                  <img src={item.url} alt={item.caption || `Gallery image ${index + 1}`} />
-                  {item.caption && (
-                    <div className="gallery-caption">{item.caption}</div>
+    <>
+      <section id="gallery" className="gallery-section">
+        <div className="container">
+          <div className="section-header">
+            <h2 className="section-title">{getValue('gallery', 'title', 'Church Gallery')}</h2>
+            <div className="title-underline"></div>
+          </div>
+          <div className="gallery-grid">
+            {galleryItems.map((item, index) => {
+              const itemReactions = getReactions(item.url);
+              const itemComments = getComments(item.url);
+              
+              return (
+                <div key={index} className="gallery-item">
+                  {item.type === 'video' ? (
+                    <div className="gallery-video">
+                      {item.isFile || (!item.url.includes('youtube.com/embed') && !item.url.includes('player.vimeo.com') && !item.url.includes('youtu.be') && !item.url.includes('vimeo.com')) ? (
+                        <video
+                          src={item.url}
+                          controls
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      ) : (
+                        <iframe
+                          src={item.url}
+                          title={`Gallery video ${index + 1}`}
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                        ></iframe>
+                      )}
+                      {item.caption && (
+                        <div className="gallery-caption">{item.caption}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="gallery-image">
+                      <img src={item.url} alt={item.caption || `Gallery image ${index + 1}`} />
+                      {item.caption && (
+                        <div className="gallery-caption">{item.caption}</div>
+                      )}
+                    </div>
                   )}
+                  
+                  {/* Reactions and Actions */}
+                  <div className="gallery-actions" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      className={`gallery-action-btn like-btn ${itemReactions.userLiked ? 'active' : ''}`}
+                      onClick={(e) => handleLike(e, item.url)}
+                      title="Like"
+                      disabled={loadingReactions[item.url]}
+                    >
+                      <FaThumbsUp />
+                      <span>{itemReactions.likes}</span>
+                    </button>
+                    <button
+                      className={`gallery-action-btn love-btn ${itemReactions.userLoved ? 'active' : ''}`}
+                      onClick={(e) => handleLove(e, item.url)}
+                      title="Love"
+                      disabled={loadingReactions[item.url]}
+                    >
+                      <FaHeart />
+                      <span>{itemReactions.loves}</span>
+                    </button>
+                    <button
+                      className="gallery-action-btn comment-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItem({ ...item, url: item.url });
+                      }}
+                      title="Comment"
+                    >
+                      <FaComment />
+                      <span>{itemComments.length}</span>
+                    </button>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Comment Modal */}
+      {selectedItem && (
+        <div className="gallery-comment-modal-overlay" onClick={() => setSelectedItem(null)}>
+          <div className="gallery-comment-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setSelectedItem(null)}>×</button>
+            <div className="modal-header">
+              <h3>Comments</h3>
+              {selectedItem.caption && <p className="modal-subtitle">{selectedItem.caption}</p>}
+            </div>
+            
+            {/* Comment Form */}
+            <form className="comment-form" onSubmit={(e) => handleCommentSubmit(e, selectedItem.url)}>
+              <input
+                type="text"
+                className="comment-author-input"
+                placeholder="Your name (optional)"
+                value={commentAuthor}
+                onChange={(e) => setCommentAuthor(e.target.value)}
+              />
+              <textarea
+                className="comment-input"
+                placeholder="Write a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                rows="3"
+                required
+              />
+              <button type="submit" className="comment-submit-btn">
+                Post Comment
+              </button>
+            </form>
+            
+            {/* Comments List */}
+            <div className="comments-list">
+              {getComments(selectedItem.url).map((comment) => (
+                <div key={comment.id} className="comment-item">
+                  <div className="comment-header">
+                    <strong className="comment-author">{comment.author}</strong>
+                    <span className="comment-date">{comment.date}</span>
+                  </div>
+                  <p className="comment-text">{comment.text}</p>
+                </div>
+              ))}
+              {getComments(selectedItem.url).length === 0 && (
+                <p className="no-comments">No comments yet. Be the first to comment!</p>
               )}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-    </section>
+      )}
+    </>
   );
 };
 

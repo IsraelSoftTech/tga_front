@@ -75,12 +75,39 @@ section {
   border-color: #22c55e;
 }
 
+.loading-message,
+.empty-programs {
+  text-align: center;
+  padding: 3rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
 .program-icon-large {
   font-size: 4rem;
   color: #22c55e;
   margin-bottom: 1.5rem;
   display: flex;
   justify-content: center;
+}
+
+.program-image-large {
+  width: 150px;
+  height: 150px;
+  margin-bottom: 1.5rem;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 4px solid #22c55e;
+  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.3);
+}
+
+.program-image-large img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .program-info h3 {

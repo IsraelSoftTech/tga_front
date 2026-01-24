@@ -61,6 +61,8 @@ async function apiRequest(endpoint, options = {}) {
       ...defaultOptions.headers,
       ...options.headers,
     },
+    // Add cache control to prevent stale data
+    cache: 'no-cache',
   };
 
   try {
@@ -77,7 +79,9 @@ async function apiRequest(endpoint, options = {}) {
 
     // Handle errors
     if (!response.ok) {
-      throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      // Backend returns error in 'error' field, not 'message'
+      const errorMessage = data.error || data.message || `HTTP error! status: ${response.status}`;
+      throw new Error(errorMessage);
     }
 
     return data;
@@ -294,6 +298,34 @@ export const programsAPI = {
   getAll: async () => {
     return apiRequest('/programs');
   },
+
+  // Get program by ID
+  getById: async (id) => {
+    return apiRequest(`/programs/${id}`);
+  },
+
+  // Create program
+  create: async (programData) => {
+    return apiRequest('/programs', {
+      method: 'POST',
+      body: JSON.stringify(programData),
+    });
+  },
+
+  // Update program
+  update: async (id, programData) => {
+    return apiRequest(`/programs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(programData),
+    });
+  },
+
+  // Delete program
+  delete: async (id) => {
+    return apiRequest(`/programs/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ============================================
@@ -360,9 +392,54 @@ export const healthAPI = {
   },
 };
 
+// ============================================
+// GALLERY API
+// ============================================
+
+export const galleryAPI = {
+  // Get reactions for a gallery item
+  getReactions: async (itemUrl) => {
+    return apiRequest(`/home/gallery/reactions?item_url=${encodeURIComponent(itemUrl)}`);
+  },
+
+  // Like a gallery item
+  like: async (itemUrl) => {
+    return apiRequest('/home/gallery/like', {
+      method: 'POST',
+      body: JSON.stringify({ item_url: itemUrl }),
+    });
+  },
+
+  // Love a gallery item
+  love: async (itemUrl) => {
+    return apiRequest('/home/gallery/love', {
+      method: 'POST',
+      body: JSON.stringify({ item_url: itemUrl }),
+    });
+  },
+
+  // Get comments for a gallery item
+  getComments: async (itemUrl) => {
+    return apiRequest(`/home/gallery/comments?item_url=${encodeURIComponent(itemUrl)}`);
+  },
+
+  // Add comment to a gallery item
+  addComment: async (itemUrl, commentText, authorName) => {
+    return apiRequest('/home/gallery/comments', {
+      method: 'POST',
+      body: JSON.stringify({
+        item_url: itemUrl,
+        comment_text: commentText,
+        author_name: authorName,
+      }),
+    });
+  },
+};
+
 // Export default API object
 export default {
   auth: authAPI,
+  home: homeAPI,
   sermons: sermonsAPI,
   prayers: prayersAPI,
   contact: contactAPI,
@@ -370,4 +447,5 @@ export default {
   testimonies: testimoniesAPI,
   programs: programsAPI,
   health: healthAPI,
+  gallery: galleryAPI,
 };

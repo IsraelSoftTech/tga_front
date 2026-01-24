@@ -3,51 +3,72 @@ import { useSearchParams } from 'react-router-dom';
 import { FaCalendarAlt, FaUser, FaBook, FaVideo, FaHeadphones, FaFileAlt, FaThumbsUp, FaHeart, FaComment, FaShare } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { sermonsAPI } from '../api';
 import './Sermons.css';
 
 const Sermons = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSermon, setSelectedSermon] = useState(null);
   const [filter, setFilter] = useState('all'); // all, video, audio, text
+  const [sermons, setSermons] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [sermonReactions, setSermonReactions] = useState({}); // { sermonId: { likes: 0, loves: 0, userLiked: false, userLoved: false } }
   const [sermonComments, setSermonComments] = useState({}); // { sermonId: [{ id, text, author, date }] }
   const [newComment, setNewComment] = useState(''); // For the comment input
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
 
-  // Sample sermons data - will be replaced with data from backend
-  const sermons = [
-    {
-      id: 1,
-      date: '2024-01-15',
-      topic: 'Walking in Faith',
-      anchorScripture: 'Hebrews 11:1',
-      speaker: 'Pastor John Smith',
-      type: 'video',
-      content: 'https://example.com/video1.mp4',
-      description: 'A powerful message about living by faith and trusting in God\'s promises.'
-    },
-    {
-      id: 2,
-      date: '2024-01-08',
-      topic: 'The Power of Prayer',
-      anchorScripture: 'James 5:16',
-      speaker: 'Pastor John Smith',
-      type: 'audio',
-      content: 'https://example.com/audio1.mp3',
-      description: 'Understanding the importance and power of prayer in our daily lives.'
-    },
-    {
-      id: 3,
-      date: '2024-01-01',
-      topic: 'New Beginnings',
-      anchorScripture: '2 Corinthians 5:17',
-      speaker: 'Pastor John Smith',
-      type: 'text',
-      content: 'Therefore, if anyone is in Christ, the new creation has come: The old has gone, the new is here! This message explores what it means to be a new creation in Christ and how we can embrace the transformation that comes through faith.',
-      description: 'A message about starting fresh in Christ and embracing new beginnings.'
+  useEffect(() => {
+    loadSermons();
+  }, []);
+
+  // Refresh sermons when window regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      loadSermons();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  const loadSermons = async () => {
+    try {
+      setLoading(true);
+      const response = await sermonsAPI.getAll();
+      if (response.success) {
+        const sermonsData = response.data || [];
+        setSermons(sermonsData);
+      }
+    } catch (error) {
+      console.error('Error loading sermons:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  // Determine sermon type based on available content
+  const getSermonType = (sermon) => {
+    if (sermon.video_url) return 'video';
+    if (sermon.audio_url) return 'audio';
+    if (sermon.description && !sermon.video_url && !sermon.audio_url) return 'text';
+    return 'text';
+  };
+
+  // Format sermon for display (convert database format to display format)
+  const formatSermonForDisplay = (sermon) => {
+    const type = getSermonType(sermon);
+    return {
+      id: sermon.id,
+      date: sermon.date,
+      topic: sermon.title,
+      anchorScripture: '', // Not in database schema, can be added later
+      speaker: sermon.speaker || '',
+      type: type,
+      content: type === 'video' ? sermon.video_url : type === 'audio' ? sermon.audio_url : sermon.description,
+      description: sermon.description || '',
+      thumbnail_url: sermon.thumbnail_url || null
+    };
+  };
 
   // Initialize reactions for each sermon if not already set
   const getReactions = (sermonId) => {
@@ -134,19 +155,21 @@ const Sermons = () => {
   // Check URL for sermon parameter and open the sermon modal
   useEffect(() => {
     const sermonId = searchParams.get('sermon');
-    if (sermonId) {
-      const sermon = sermons.find(s => s.id === parseInt(sermonId));
+    if (sermonId && sermons.length > 0) {
+      const formattedSermons = sermons.map(formatSermonForDisplay);
+      const sermon = formattedSermons.find(s => s.id === parseInt(sermonId));
       if (sermon) {
         setSelectedSermon(sermon);
         // Remove the query parameter from URL after opening
         setSearchParams({});
       }
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, sermons]);
 
+  const formattedSermons = sermons.map(formatSermonForDisplay);
   const filteredSermons = filter === 'all' 
-    ? sermons 
-    : sermons.filter(sermon => sermon.type === filter);
+    ? formattedSermons 
+    : formattedSermons.filter(sermon => sermon.type === filter);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -170,6 +193,26 @@ const Sermons = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="sermons-page">
+        <Header />
+        <section className="sermons-hero">
+          <div className="container">
+            <h1 className="page-title">Sermons</h1>
+            <p className="page-subtitle">Messages, teachings, and inspiration from our pulpit</p>
+          </div>
+        </section>
+        <section className="sermons-content">
+          <div className="container">
+            <div className="loading-message"></div>
+          </div>
+        </section>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="sermons-page">
       <Header />
@@ -183,7 +226,13 @@ const Sermons = () => {
 
       <section className="sermons-content">
         <div className="container">
-          <div className="sermons-filters">
+          {formattedSermons.length === 0 ? (
+            <div className="empty-sermons">
+              <p>No sermons available at this time. Please check back later.</p>
+            </div>
+          ) : (
+            <>
+              <div className="sermons-filters">
             <button 
               className={`filter-btn ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
@@ -217,30 +266,52 @@ const Sermons = () => {
               
               return (
                 <div key={sermon.id} className="sermon-card" onClick={() => setSelectedSermon(sermon)}>
-                  <div className="sermon-type-badge">
-                    {getTypeIcon(sermon.type)}
-                    <span>{sermon.type.charAt(0).toUpperCase() + sermon.type.slice(1)}</span>
-                  </div>
+                  {/* Thumbnail */}
+                  {sermon.thumbnail_url && (
+                    <div className="sermon-thumbnail-wrapper">
+                      <img src={sermon.thumbnail_url} alt={sermon.topic} className="sermon-thumbnail" />
+                      <div className="sermon-type-badge-overlay">
+                        {getTypeIcon(sermon.type)}
+                        <span>{sermon.type.charAt(0).toUpperCase() + sermon.type.slice(1)}</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!sermon.thumbnail_url && (
+                    <div className="sermon-type-badge">
+                      {getTypeIcon(sermon.type)}
+                      <span>{sermon.type.charAt(0).toUpperCase() + sermon.type.slice(1)}</span>
+                    </div>
+                  )}
+                  
                   <div className="sermon-info">
                     <h3 className="sermon-topic">{sermon.topic}</h3>
                     <div className="sermon-meta">
-                      <div className="meta-item">
-                        <FaCalendarAlt />
-                        <span>{formatDate(sermon.date)}</span>
-                      </div>
-                      <div className="meta-item">
-                        <FaUser />
-                        <span>{sermon.speaker}</span>
-                      </div>
-                      <div className="meta-item">
-                        <FaBook />
-                        <span>{sermon.anchorScripture}</span>
-                      </div>
+                      {sermon.date && (
+                        <div className="meta-item">
+                          <FaCalendarAlt />
+                          <span>{formatDate(sermon.date)}</span>
+                        </div>
+                      )}
+                      {sermon.speaker && (
+                        <div className="meta-item">
+                          <FaUser />
+                          <span>{sermon.speaker}</span>
+                        </div>
+                      )}
+                      {sermon.anchorScripture && (
+                        <div className="meta-item">
+                          <FaBook />
+                          <span>{sermon.anchorScripture}</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="sermon-description">{sermon.description}</p>
+                    {sermon.description && (
+                      <p className="sermon-description">{sermon.description.substring(0, 120)}{sermon.description.length > 120 ? '...' : ''}</p>
+                    )}
                   </div>
                   
-                  {/* Reactions and Actions */}
+                  {/* Reactions and Actions - Flex Layout */}
                   <div className="sermon-actions" onClick={(e) => e.stopPropagation()}>
                     <button 
                       className={`action-btn like-btn ${reactions.userLiked ? 'active' : ''}`}
@@ -282,7 +353,9 @@ const Sermons = () => {
                 </div>
               );
             })}
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </section>
 
@@ -330,15 +403,26 @@ const Sermons = () => {
             <div className="modal-content">
               {selectedSermon.type === 'video' && (
                 <div className="media-container">
-                  <video controls className="sermon-video">
-                    <source src={selectedSermon.content} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                  {selectedSermon.content && (selectedSermon.content.includes('youtube.com/embed') || selectedSermon.content.includes('player.vimeo.com')) ? (
+                    <iframe
+                      src={selectedSermon.content}
+                      title={selectedSermon.topic}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      style={{ width: '100%', height: '400px' }}
+                    ></iframe>
+                  ) : (
+                    <video controls className="sermon-video" style={{ width: '100%' }}>
+                      <source src={selectedSermon.content} type="video/mp4" />
+                      Your browser does not support the video tag.
+                    </video>
+                  )}
                 </div>
               )}
               {selectedSermon.type === 'audio' && (
                 <div className="media-container">
-                  <audio controls className="sermon-audio">
+                  <audio controls className="sermon-audio" style={{ width: '100%' }}>
                     <source src={selectedSermon.content} type="audio/mpeg" />
                     Your browser does not support the audio element.
                   </audio>
@@ -346,7 +430,7 @@ const Sermons = () => {
               )}
               {selectedSermon.type === 'text' && (
                 <div className="text-content">
-                  <p>{selectedSermon.content}</p>
+                  <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8' }}>{selectedSermon.content}</p>
                 </div>
               )}
               

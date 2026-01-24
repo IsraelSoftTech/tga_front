@@ -13,6 +13,7 @@ const AdminHome = () => {
   const [editing, setEditing] = useState(null);
   const [preview, setPreview] = useState(null);
   const [toast, setToast] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({ show: false, progress: 0, fileName: '' });
 
   useEffect(() => {
     loadContent();
@@ -89,6 +90,83 @@ const AdminHome = () => {
       console.error('Error deleting content:', error);
       showToast('Failed to delete content. Please try again.', 'error');
     }
+  };
+
+  // Get API base URL (same logic as api.js)
+  const getApiBaseUrl = () => {
+    if (process.env.REACT_APP_API_URL) {
+      return process.env.REACT_APP_API_URL;
+    }
+    const hostname = window.location.hostname;
+    if (hostname === 'towngreen.onrender.com' || hostname.includes('towngreen.onrender.com')) {
+      return 'https://api.farmsolutionss.com/api';
+    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
+      return 'http://localhost:5000/api';
+    }
+    return 'https://api.farmsolutionss.com/api';
+  };
+
+  // Custom upload function with progress tracking
+  const uploadFileWithProgress = async (base64, fileName, subDir, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const apiBaseUrl = getApiBaseUrl();
+      const url = `${apiBaseUrl}/home/upload`;
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = Math.round((e.loaded / e.total) * 100);
+          if (onProgress) {
+            onProgress(percentComplete);
+          }
+        }
+      });
+      
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            resolve(response);
+          } catch (error) {
+            reject(new Error('Failed to parse response'));
+          }
+        } else {
+          try {
+            const error = JSON.parse(xhr.responseText);
+            reject(new Error(error.error || error.message || 'Upload failed'));
+          } catch {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        }
+      });
+      
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error during upload'));
+      });
+      
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload aborted'));
+      });
+      
+      xhr.open('POST', url);
+      
+      // Add authorization header
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      }
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      
+      const payload = JSON.stringify({
+        file: base64,
+        fileName: fileName,
+        subDir: subDir
+      });
+      
+      xhr.send(payload);
+    });
   };
 
   const handleImageUpload = async (event, section, contentKey) => {
@@ -473,7 +551,96 @@ const AdminHome = () => {
       }
     };
 
-    const handleAddVideo = async () => {
+    const handleAddVideoFile = async (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        console.log('No file selected');
+        return;
+      }
+
+      if (!file.type.startsWith('video/')) {
+        showToast('Please select a video file', 'warning');
+        return;
+      }
+
+      // Check file size (100MB = 100 * 1024 * 1024 bytes)
+      const maxSize = 100 * 1024 * 1024; // 100MB
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      
+      if (file.size > maxSize) {
+        showToast(`File size (${fileSizeMB} MB) exceeds maximum allowed size of 100 MB`, 'error');
+        return;
+      }
+
+      console.log('📤 Starting video upload:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileSizeMB: fileSizeMB,
+        fileType: file.type
+      });
+
+      try {
+        setSaving(true);
+        setUploadProgress({ show: true, progress: 0, fileName: file.name });
+        
+        // Read file to base64 (same as image upload)
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            setUploadProgress({ show: true, progress: 10, fileName: file.name });
+            const base64 = reader.result;
+            
+            if (!base64) {
+              throw new Error('Failed to read file. File may be corrupted or too large.');
+            }
+            
+            console.log(`📦 File read successfully. Base64 length: ${base64.length} characters`);
+            const fileName = file.name;
+            
+            // Use the same upload method as images
+            setUploadProgress({ show: true, progress: 30, fileName: file.name });
+            console.log(`🚀 Sending to server...`);
+            const response = await homeAPI.uploadFile(base64, fileName, 'videos');
+            console.log(`📥 Server response:`, response);
+            setUploadProgress({ show: true, progress: 90, fileName: file.name });
+            
+            if (response.success && response.url) {
+              setUploadProgress({ show: true, progress: 100, fileName: file.name });
+              const newItems = [...items, { type: 'video', url: response.url, caption: '', isFile: true }];
+              const itemsJsonString = JSON.stringify(newItems);
+              await handleSave(section, 'items', itemsJsonString, 'json', 0);
+              setUploadProgress({ show: false, progress: 0, fileName: '' });
+              showToast('🎥 Video uploaded and added to gallery!', 'success');
+            } else {
+              setUploadProgress({ show: false, progress: 0, fileName: '' });
+              showToast('Upload failed: ' + (response.error || 'Unknown error'), 'error');
+            }
+          } catch (error) {
+            console.error('Upload error:', error);
+            setUploadProgress({ show: false, progress: 0, fileName: '' });
+            showToast('Failed to upload video: ' + (error.message || 'Unknown error'), 'error');
+          } finally {
+            setSaving(false);
+          }
+        };
+        
+        reader.onerror = (error) => {
+          console.error('❌ FileReader error:', error);
+          setUploadProgress({ show: false, progress: 0, fileName: '' });
+          showToast('Failed to read video file', 'error');
+          setSaving(false);
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Video upload error:', error);
+        setUploadProgress({ show: false, progress: 0, fileName: '' });
+        showToast('Failed to upload video', 'error');
+        setSaving(false);
+      }
+    };
+
+    const handleAddVideoUrl = async () => {
       const videoUrl = window.prompt('Enter video URL (YouTube, Vimeo, etc.):');
       if (!videoUrl) return;
 
@@ -497,7 +664,7 @@ const AdminHome = () => {
       }
 
       try {
-        const newItems = [...items, { type: 'video', url: embedUrl, caption: '' }];
+        const newItems = [...items, { type: 'video', url: embedUrl, caption: '', isFile: false }];
         const itemsJsonString = JSON.stringify(newItems);
         await handleSave(section, 'items', itemsJsonString, 'json', 0);
         showToast('🎥 Video added to gallery!', 'success');
@@ -550,10 +717,25 @@ const AdminHome = () => {
                   </div>
                 ) : (
                   <div className="gallery-item-preview">
-                    <div className="gallery-video-preview">
-                      <FaVideo style={{ fontSize: '2rem', color: '#666' }} />
-                    </div>
-                    <div className="gallery-item-type">Video</div>
+                    {item.isFile ? (
+                      <video
+                        src={item.url}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                        muted
+                      />
+                    ) : (
+                      <div className="gallery-video-preview">
+                        <FaVideo style={{ fontSize: '2rem', color: '#666' }} />
+                      </div>
+                    )}
+                    <div className="gallery-item-type">Video {item.isFile ? '(File)' : '(URL)'}</div>
                   </div>
                 )}
                 <input
@@ -591,8 +773,18 @@ const AdminHome = () => {
               disabled={saving}
             />
           </label>
-          <button onClick={handleAddVideo} className="btn-edit" disabled={saving}>
-            <FaVideo /> Add Video
+          <label className="btn-edit" style={{ margin: 0, cursor: 'pointer' }}>
+            <FaUpload /> Add Video File
+            <input
+              type="file"
+              accept="video/*"
+              onChange={handleAddVideoFile}
+              style={{ display: 'none' }}
+              disabled={saving}
+            />
+          </label>
+          <button onClick={handleAddVideoUrl} className="btn-edit" disabled={saving}>
+            <FaVideo /> Add Video URL
           </button>
           {items.length > 0 && (
             <span className="image-count">{items.length} item{items.length !== 1 ? 's' : ''} in gallery</span>
@@ -622,6 +814,33 @@ const AdminHome = () => {
           onClose={() => setToast(null)}
           duration={4000}
         />
+      )}
+
+      {/* Upload Progress Bar */}
+      {uploadProgress.show && (
+        <div className="upload-progress-overlay">
+          <div className="upload-progress-container">
+            <div className="upload-progress-header">
+              <h3>Uploading Video</h3>
+              <span className="upload-progress-close" onClick={() => setUploadProgress({ show: false, progress: 0, fileName: '' })}>
+                <FaTimes />
+              </span>
+            </div>
+            <div className="upload-progress-file-name">{uploadProgress.fileName}</div>
+            <div className="upload-progress-bar-wrapper">
+              <div className="upload-progress-bar">
+                <div 
+                  className="upload-progress-bar-fill" 
+                  style={{ width: `${uploadProgress.progress}%` }}
+                ></div>
+              </div>
+              <div className="upload-progress-percentage">{uploadProgress.progress}%</div>
+            </div>
+            <div className="upload-progress-status">
+              {uploadProgress.progress < 100 ? 'Uploading...' : 'Processing...'}
+            </div>
+          </div>
+        </div>
       )}
       
       <section className="admin-section">
