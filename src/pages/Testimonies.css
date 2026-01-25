@@ -51,6 +51,23 @@ section {
   background: #f9f9f9;
 }
 
+.empty-testimonies {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+.empty-testimonies p {
+  font-size: 1.1rem;
+}
+
+.loading-message {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+  font-size: 1.1rem;
+}
+
 .testimonies-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));

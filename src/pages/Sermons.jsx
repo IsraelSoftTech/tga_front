@@ -15,8 +15,10 @@ const Sermons = () => {
   const [sermonReactions, setSermonReactions] = useState({}); // { sermonId: { likes: 0, loves: 0, userLiked: false, userLoved: false } }
   const [sermonComments, setSermonComments] = useState({}); // { sermonId: [{ id, text, author, date }] }
   const [newComment, setNewComment] = useState(''); // For the comment input
+  const [commentAuthor, setCommentAuthor] = useState(''); // For comment author name
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
+  const [loadingReactions, setLoadingReactions] = useState({});
 
   useEffect(() => {
     loadSermons();
@@ -38,11 +40,44 @@ const Sermons = () => {
       if (response.success) {
         const sermonsData = response.data || [];
         setSermons(sermonsData);
+        // Load reactions and comments for all sermons
+        sermonsData.forEach((sermon) => {
+          loadReactions(sermon.id);
+          loadComments(sermon.id);
+        });
       }
     } catch (error) {
       console.error('Error loading sermons:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReactions = async (sermonId) => {
+    try {
+      const response = await sermonsAPI.getReactions(sermonId);
+      if (response.success) {
+        setSermonReactions(prev => ({
+          ...prev,
+          [sermonId]: response.data || { likes: 0, loves: 0, userLiked: false, userLoved: false }
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading reactions:', error);
+    }
+  };
+
+  const loadComments = async (sermonId) => {
+    try {
+      const response = await sermonsAPI.getComments(sermonId);
+      if (response.success) {
+        setSermonComments(prev => ({
+          ...prev,
+          [sermonId]: response.data || []
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading comments:', error);
     }
   };
 
@@ -84,31 +119,35 @@ const Sermons = () => {
   };
 
   // Handle like toggle
-  const handleLike = (e, sermonId) => {
+  const handleLike = async (e, sermonId) => {
     e.stopPropagation();
-    const current = getReactions(sermonId);
-    setSermonReactions({
-      ...sermonReactions,
-      [sermonId]: {
-        ...current,
-        likes: current.userLiked ? current.likes - 1 : current.likes + 1,
-        userLiked: !current.userLiked
-      }
-    });
+    if (loadingReactions[sermonId]) return;
+    
+    setLoadingReactions(prev => ({ ...prev, [sermonId]: true }));
+    try {
+      await sermonsAPI.like(sermonId);
+      await loadReactions(sermonId);
+    } catch (error) {
+      console.error('Error toggling like:', error);
+    } finally {
+      setLoadingReactions(prev => ({ ...prev, [sermonId]: false }));
+    }
   };
 
   // Handle love toggle
-  const handleLove = (e, sermonId) => {
+  const handleLove = async (e, sermonId) => {
     e.stopPropagation();
-    const current = getReactions(sermonId);
-    setSermonReactions({
-      ...sermonReactions,
-      [sermonId]: {
-        ...current,
-        loves: current.userLoved ? current.loves - 1 : current.loves + 1,
-        userLoved: !current.userLoved
-      }
-    });
+    if (loadingReactions[sermonId]) return;
+    
+    setLoadingReactions(prev => ({ ...prev, [sermonId]: true }));
+    try {
+      await sermonsAPI.love(sermonId);
+      await loadReactions(sermonId);
+    } catch (error) {
+      console.error('Error toggling love:', error);
+    } finally {
+      setLoadingReactions(prev => ({ ...prev, [sermonId]: false }));
+    }
   };
 
   // Handle share
@@ -127,29 +166,18 @@ const Sermons = () => {
   };
 
   // Handle comment submission
-  const handleCommentSubmit = (e, sermonId) => {
+  const handleCommentSubmit = async (e, sermonId) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const comment = {
-      id: Date.now(),
-      text: newComment.trim(),
-      author: 'You', // In a real app, this would come from user authentication
-      date: new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
-
-    const currentComments = getComments(sermonId);
-    setSermonComments({
-      ...sermonComments,
-      [sermonId]: [...currentComments, comment]
-    });
-    setNewComment('');
+    try {
+      await sermonsAPI.addComment(sermonId, newComment.trim(), commentAuthor.trim() || 'Anonymous');
+      setNewComment('');
+      setCommentAuthor('');
+      await loadComments(sermonId);
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
   };
 
   // Check URL for sermon parameter and open the sermon modal
@@ -317,6 +345,7 @@ const Sermons = () => {
                       className={`action-btn like-btn ${reactions.userLiked ? 'active' : ''}`}
                       onClick={(e) => handleLike(e, sermon.id)}
                       title="Like"
+                      disabled={loadingReactions[sermon.id]}
                     >
                       <FaThumbsUp />
                       <span>{reactions.likes}</span>
@@ -325,6 +354,7 @@ const Sermons = () => {
                       className={`action-btn love-btn ${reactions.userLoved ? 'active' : ''}`}
                       onClick={(e) => handleLove(e, sermon.id)}
                       title="Love"
+                      disabled={loadingReactions[sermon.id]}
                     >
                       <FaHeart />
                       <span>{reactions.loves}</span>
@@ -378,6 +408,7 @@ const Sermons = () => {
                   className={`action-btn like-btn ${getReactions(selectedSermon.id).userLiked ? 'active' : ''}`}
                   onClick={(e) => handleLike(e, selectedSermon.id)}
                   title="Like"
+                  disabled={loadingReactions[selectedSermon.id]}
                 >
                   <FaThumbsUp />
                   <span>{getReactions(selectedSermon.id).likes}</span>
@@ -386,6 +417,7 @@ const Sermons = () => {
                   className={`action-btn love-btn ${getReactions(selectedSermon.id).userLoved ? 'active' : ''}`}
                   onClick={(e) => handleLove(e, selectedSermon.id)}
                   title="Love"
+                  disabled={loadingReactions[selectedSermon.id]}
                 >
                   <FaHeart />
                   <span>{getReactions(selectedSermon.id).loves}</span>
@@ -442,6 +474,13 @@ const Sermons = () => {
                 
                 {/* Comment Form */}
                 <form className="comment-form" onSubmit={(e) => handleCommentSubmit(e, selectedSermon.id)}>
+                  <input
+                    type="text"
+                    className="comment-author-input"
+                    placeholder="Your name (optional)"
+                    value={commentAuthor}
+                    onChange={(e) => setCommentAuthor(e.target.value)}
+                  />
                   <textarea
                     className="comment-input"
                     placeholder="Write a comment..."

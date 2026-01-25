@@ -205,11 +205,19 @@ export const sermonsAPI = {
   },
 
   // Add comment to sermon
-  addComment: async (sermonId, comment) => {
+  addComment: async (sermonId, commentText, authorName) => {
     return apiRequest(`/sermons/${sermonId}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ text: comment }),
+      body: JSON.stringify({ 
+        comment_text: commentText,
+        author_name: authorName || 'Anonymous'
+      }),
     });
+  },
+
+  // Get reactions for sermon
+  getReactions: async (sermonId) => {
+    return apiRequest(`/sermons/${sermonId}/reactions`);
   },
 };
 
@@ -324,6 +332,41 @@ export const programsAPI = {
   delete: async (id) => {
     return apiRequest(`/programs/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  // Get reactions for program
+  getReactions: async (programId) => {
+    return apiRequest(`/programs/${programId}/reactions`);
+  },
+
+  // Like program
+  like: async (programId) => {
+    return apiRequest(`/programs/${programId}/like`, {
+      method: 'POST',
+    });
+  },
+
+  // Love program
+  love: async (programId) => {
+    return apiRequest(`/programs/${programId}/love`, {
+      method: 'POST',
+    });
+  },
+
+  // Get comments for program
+  getComments: async (programId) => {
+    return apiRequest(`/programs/${programId}/comments`);
+  },
+
+  // Add comment to program
+  addComment: async (programId, commentText, authorName) => {
+    return apiRequest(`/programs/${programId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        comment_text: commentText,
+        author_name: authorName || 'Anonymous'
+      }),
     });
   },
 };
