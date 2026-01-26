@@ -272,9 +272,29 @@ export const membershipAPI = {
     });
   },
 
-  // Get all applications (admin only)
-  getAll: async () => {
-    return apiRequest('/membership');
+  // Get all applications with pagination (admin only)
+  getAll: async (page = 1, limit = 10) => {
+    return apiRequest(`/membership?page=${page}&limit=${limit}`);
+  },
+
+  // Get membership by ID
+  getById: async (id) => {
+    return apiRequest(`/membership/${id}`);
+  },
+
+  // Update membership application (admin only)
+  update: async (id, membershipData) => {
+    return apiRequest(`/membership/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(membershipData),
+    });
+  },
+
+  // Delete membership application (admin only)
+  delete: async (id) => {
+    return apiRequest(`/membership/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 

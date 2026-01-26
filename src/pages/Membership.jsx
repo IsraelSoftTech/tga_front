@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaVenusMars, FaCheckCircle } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { membershipAPI } from '../api';
 import './Membership.css';
 
 const Membership = () => {
@@ -13,6 +14,8 @@ const Membership = () => {
     email: ''
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -20,17 +23,31 @@ const Membership = () => {
       ...prev,
       [name]: value
     }));
+    setError(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Connect to backend
-    console.log('Membership form submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ fullName: '', sex: '', address: '', phone: '', email: '' });
-    }, 3000);
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await membershipAPI.submit(formData);
+      if (response.success) {
+        setSubmitted(true);
+        setFormData({ fullName: '', sex: '', address: '', phone: '', email: '' });
+        setTimeout(() => {
+          setSubmitted(false);
+        }, 5000);
+      } else {
+        setError(response.error || 'Failed to submit application. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error submitting membership form:', err);
+      setError(err.message || 'Failed to submit application. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -55,6 +72,18 @@ const Membership = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="membership-form">
+                {error && (
+                  <div className="error-message" style={{ 
+                    padding: '1rem', 
+                    background: '#fee', 
+                    color: '#c33', 
+                    borderRadius: '8px', 
+                    marginBottom: '1rem',
+                    border: '1px solid #fcc'
+                  }}>
+                    {error}
+                  </div>
+                )}
                 <div className="form-group">
                   <label htmlFor="fullName">
                     <FaUser /> Full Name *
@@ -131,8 +160,8 @@ const Membership = () => {
                   />
                 </div>
 
-                <button type="submit" className="submit-btn">
-                  Submit Application
+                <button type="submit" className="submit-btn" disabled={submitting}>
+                  {submitting ? 'Submitting...' : 'Submit Application'}
                 </button>
               </form>
             )}
