@@ -259,9 +259,7 @@ export const contactAPI = {
   },
 };
 
-// ============================================
-// MEMBERSHIP API
-// ============================================
+
 
 export const membershipAPI = {
   // Submit membership application
