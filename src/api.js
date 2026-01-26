@@ -1,13 +1,21 @@
 // API Configuration and Endpoints
-// Automatically detect environment and set API URL
+// Robust configuration that works in both development and production
 const getApiBaseUrl = () => {
-  // Priority 1: Use explicit environment variable if set
+  // Priority 1: Use runtime config from window object (injected at runtime)
+  // This works even if environment variables aren't available at build time
+  if (window.__API_CONFIG__ && window.__API_CONFIG__.apiUrl) {
+    const apiUrl = window.__API_CONFIG__.apiUrl;
+    console.log('🌐 Using API URL from runtime config:', apiUrl);
+    return apiUrl;
+  }
+  
+  // Priority 2: Use explicit environment variable if set (build-time)
   if (process.env.REACT_APP_API_URL) {
     console.log('🌐 Using API URL from environment variable:', process.env.REACT_APP_API_URL);
     return process.env.REACT_APP_API_URL;
   }
   
-  // Priority 2: Detect environment based on current hostname
+  // Priority 3: Detect environment based on current hostname
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   
@@ -19,7 +27,6 @@ const getApiBaseUrl = () => {
   }
   
   // Production environment - any non-localhost domain uses production API
-  // This includes towngreen.onrender.com and any other production domains
   // Backend is at https://tga.api.farmsolutionss.com/ with routes under /api
   const apiUrl = 'https://tga.api.farmsolutionss.com/api';
   console.log('🌐 Production mode detected (hostname:', hostname, '). Using API:', apiUrl);
@@ -34,6 +41,7 @@ API_BASE_URL = API_BASE_URL.replace(/\/+$/, '');
 // Log the API configuration (helpful for debugging)
 console.log('📡 API Base URL:', API_BASE_URL);
 console.log('📍 Current hostname:', window.location.hostname);
+console.log('🔧 Environment:', process.env.NODE_ENV);
 
 // Helper function to make API requests
 async function apiRequest(endpoint, options = {}) {
@@ -68,6 +76,11 @@ async function apiRequest(endpoint, options = {}) {
   try {
     const response = await fetch(url, config);
     
+    // Handle network errors (CORS, connection refused, etc.)
+    if (!response.ok && response.status === 0) {
+      throw new Error(`Network error: Unable to connect to ${API_BASE_URL}. Please check CORS configuration and API availability.`);
+    }
+    
     // Handle non-JSON responses
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
@@ -86,7 +99,20 @@ async function apiRequest(endpoint, options = {}) {
 
     return data;
   } catch (error) {
-    console.error('API Request Error:', error);
+    // Enhanced error logging for debugging
+    console.error('API Request Error:', {
+      url,
+      endpoint,
+      baseUrl: API_BASE_URL,
+      error: error.message,
+      hostname: window.location.hostname
+    });
+    
+    // Re-throw with more context if it's a network error
+    if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      throw new Error(`Cannot connect to API at ${API_BASE_URL}. Please verify the backend is running and CORS is configured correctly.`);
+    }
+    
     throw error;
   }
 }

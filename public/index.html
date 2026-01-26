@@ -25,6 +25,30 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Fgm Town Green B'da</title>
+    <!-- Runtime API Configuration -->
+    <!-- This script runs before React loads, allowing runtime API URL configuration -->
+    <script>
+      // Initialize API configuration object
+      window.__API_CONFIG__ = window.__API_CONFIG__ || {};
+      
+      // Set API URL - this can be overridden by environment variables at build time
+      // but will work even if env vars aren't available during build
+      (function() {
+        // Check if we're in production (not localhost)
+        var hostname = window.location.hostname;
+        var isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+        
+        if (!isDevelopment) {
+          // Production: Use the production API URL
+          window.__API_CONFIG__.apiUrl = 'https://tga.api.farmsolutionss.com/api';
+          console.log('🔧 Runtime config: Production API URL set to', window.__API_CONFIG__.apiUrl);
+        } else {
+          // Development: Use local API
+          window.__API_CONFIG__.apiUrl = 'http://localhost:5000/api';
+          console.log('🔧 Runtime config: Development API URL set to', window.__API_CONFIG__.apiUrl);
+        }
+      })();
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
