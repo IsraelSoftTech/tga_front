@@ -20,12 +20,16 @@ const getApiBaseUrl = () => {
   
   // Production environment - any non-localhost domain uses production API
   // This includes towngreen.onrender.com and any other production domains
+  // Backend is at https://tga.api.farmsolutionss.com/ with routes under /api
   const apiUrl = 'https://tga.api.farmsolutionss.com/api';
   console.log('🌐 Production mode detected (hostname:', hostname, '). Using API:', apiUrl);
   return apiUrl;
 };
 
-const API_BASE_URL = getApiBaseUrl();
+// Get base URL and ensure it doesn't end with a slash
+let API_BASE_URL = getApiBaseUrl();
+// Remove trailing slash if present to avoid double slashes
+API_BASE_URL = API_BASE_URL.replace(/\/+$/, '');
 
 // Log the API configuration (helpful for debugging)
 console.log('📡 API Base URL:', API_BASE_URL);
@@ -33,7 +37,9 @@ console.log('📍 Current hostname:', window.location.hostname);
 
 // Helper function to make API requests
 async function apiRequest(endpoint, options = {}) {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // Ensure endpoint starts with / and base URL doesn't end with /
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${cleanEndpoint}`;
   
   const defaultOptions = {
     headers: {
