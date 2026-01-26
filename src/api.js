@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
   
   // Production environment (towngreen.onrender.com)
   if (hostname === 'towngreen.onrender.com' || hostname.includes('towngreen.onrender.com')) {
-    const apiUrl = 'https://api.farmsolutionss.com/api';
+    const apiUrl = 'https://tga.api.farmsolutionss.com/api';
     console.log('🌐 Production mode detected. Using API:', apiUrl);
     return apiUrl;
   }
@@ -26,7 +26,7 @@ const getApiBaseUrl = () => {
   }
   
   // Default to production for safety
-  const apiUrl = 'https://api.farmsolutionss.com/api';
+  const apiUrl = 'https://tga.api.farmsolutionss.com/api';
   console.log('🌐 Default mode. Using production API:', apiUrl);
   return apiUrl;
 };
