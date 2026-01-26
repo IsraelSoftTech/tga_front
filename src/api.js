@@ -11,13 +11,6 @@ const getApiBaseUrl = () => {
   const hostname = window.location.hostname;
   const protocol = window.location.protocol;
   
-  // Production environment (towngreen.onrender.com)
-  if (hostname === 'towngreen.onrender.com' || hostname.includes('towngreen.onrender.com')) {
-    const apiUrl = 'https://tga.api.farmsolutionss.com/api';
-    console.log('🌐 Production mode detected. Using API:', apiUrl);
-    return apiUrl;
-  }
-  
   // Development environment (localhost)
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '') {
     const apiUrl = 'http://localhost:5000/api';
@@ -25,9 +18,10 @@ const getApiBaseUrl = () => {
     return apiUrl;
   }
   
-  // Default to production for safety
+  // Production environment - any non-localhost domain uses production API
+  // This includes towngreen.onrender.com and any other production domains
   const apiUrl = 'https://tga.api.farmsolutionss.com/api';
-  console.log('🌐 Default mode. Using production API:', apiUrl);
+  console.log('🌐 Production mode detected (hostname:', hostname, '). Using API:', apiUrl);
   return apiUrl;
 };
 
