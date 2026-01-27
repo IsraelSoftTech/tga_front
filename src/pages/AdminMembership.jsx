@@ -64,7 +64,8 @@ const AdminMembership = () => {
       setSaving(true);
       const response = await membershipAPI.update(id, editForm);
       if (response.success) {
-        await loadMemberships();
+        // Update state directly instead of reloading
+        setMemberships(prev => prev.map(m => m.id === id ? { ...m, ...editForm } : m));
         setEditing(null);
         setEditForm({});
       } else {
@@ -87,7 +88,9 @@ const AdminMembership = () => {
       setDeleting(id);
       const response = await membershipAPI.delete(id);
       if (response.success) {
-        await loadMemberships();
+        // Update state directly instead of reloading
+        setMemberships(prev => prev.filter(m => m.id !== id));
+        setTotal(prev => Math.max(0, prev - 1));
       } else {
         setError(response.error || 'Failed to delete membership');
       }

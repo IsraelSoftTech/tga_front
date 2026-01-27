@@ -49,7 +49,23 @@ const AdminTestimonies = () => {
       setSaving(true);
       const response = await homeAPI.updateContent(section, key, value, type, order);
       if (response.success) {
-        await loadContent();
+        // Update state directly instead of reloading
+        setContent(prev => {
+          const newContent = { ...prev };
+          if (!newContent[section]) {
+            newContent[section] = {};
+          }
+          newContent[section] = {
+            ...newContent[section],
+            [key]: {
+              id: response.data?.id || getContentId(section, key) || Date.now(),
+              value: value,
+              type: type,
+              order: order
+            }
+          };
+          return newContent;
+        });
         setEditing(null);
         showToast('✨ Content saved successfully! Changes are now live.', 'success');
       } else {
@@ -79,7 +95,15 @@ const AdminTestimonies = () => {
 
       const response = await homeAPI.deleteContent(contentId, contentValue);
       if (response.success) {
-        await loadContent();
+        // Update state directly instead of reloading
+        setContent(prev => {
+          const newContent = { ...prev };
+          if (newContent[section] && newContent[section][key]) {
+            const { [key]: removed, ...rest } = newContent[section];
+            newContent[section] = rest;
+          }
+          return newContent;
+        });
         showToast('🗑️ Content deleted successfully!', 'success');
       } else {
         showToast('Failed to delete: ' + (response.error || 'Unknown error'), 'error');

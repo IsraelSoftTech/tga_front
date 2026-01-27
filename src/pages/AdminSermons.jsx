@@ -113,7 +113,13 @@ const AdminSermons = () => {
       }
 
       if (response.success) {
-        await loadSermons();
+        // Update state directly instead of reloading
+        if (editing) {
+          setSermons(prev => prev.map(s => s.id === editing.id ? { ...s, ...sermonData } : s));
+        } else {
+          // Add new sermon to the list
+          setSermons(prev => [...prev, { id: response.data?.id || Date.now(), ...sermonData }]);
+        }
         resetForm();
         showToast(editing ? '✨ Sermon updated successfully! Changes are now live.' : '✨ Sermon created successfully!', 'success');
       } else {
@@ -135,7 +141,8 @@ const AdminSermons = () => {
     try {
       const response = await sermonsAPI.delete(sermon.id);
       if (response.success) {
-        await loadSermons();
+        // Update state directly instead of reloading
+        setSermons(prev => prev.filter(s => s.id !== sermon.id));
         showToast('🗑️ Sermon deleted successfully!', 'success');
       } else {
         showToast('Failed to delete: ' + (response.error || 'Unknown error'), 'error');

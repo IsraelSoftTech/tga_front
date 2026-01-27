@@ -84,7 +84,13 @@ const AdminChurchPrograms = () => {
       }
 
       if (response.success) {
-        await loadPrograms();
+        // Update state directly instead of reloading
+        if (editing) {
+          setPrograms(prev => prev.map(p => p.id === editing.id ? { ...p, ...formData } : p));
+        } else {
+          // Add new program to the list
+          setPrograms(prev => [...prev, { id: response.data?.id || Date.now(), ...formData }]);
+        }
         resetForm();
         showToast(editing ? '✨ Program updated successfully! Changes are now live.' : '✨ Program created successfully!', 'success');
       } else {
@@ -106,7 +112,8 @@ const AdminChurchPrograms = () => {
     try {
       const response = await programsAPI.delete(program.id);
       if (response.success) {
-        await loadPrograms();
+        // Update state directly instead of reloading
+        setPrograms(prev => prev.filter(p => p.id !== program.id));
         showToast('🗑️ Program deleted successfully!', 'success');
       } else {
         showToast('Failed to delete: ' + (response.error || 'Unknown error'), 'error');
@@ -163,8 +170,11 @@ const AdminChurchPrograms = () => {
               if (program) {
                 const updatedData = { ...formData, image_url: response.url };
                 setFormData(updatedData);
-                await programsAPI.update(programId, updatedData);
-                await loadPrograms();
+                const updateResponse = await programsAPI.update(programId, updatedData);
+                if (updateResponse.success) {
+                  // Update state directly instead of reloading
+                  setPrograms(prev => prev.map(p => p.id === programId ? { ...p, ...updatedData } : p));
+                }
               }
             } else {
               // Set for new program
