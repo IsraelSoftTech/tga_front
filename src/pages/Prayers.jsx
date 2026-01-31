@@ -1,17 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaPrayingHands, FaHeart, FaCheckCircle } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { homeAPI, prayersAPI } from '../api';
 import './Prayers.css';
 
 const Prayers = () => {
+  const [content, setContent] = useState({});
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    phone: '',
     request: '',
     anonymous: false
   });
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    loadContent();
+  }, []);
+
+  const loadContent = async () => {
+    try {
+      setLoading(true);
+      const response = await homeAPI.getContent();
+      if (response.success) {
+        setContent(response.data || {});
+      }
+    } catch (error) {
+      console.error('Error loading content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getValue = (key, defaultValue = '') => {
+    return content?.prayers_page?.[key]?.value || defaultValue;
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -21,16 +47,36 @@ const Prayers = () => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Connect to backend
-    console.log('Prayer request submitted:', formData);
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', email: '', request: '', anonymous: false });
-    }, 3000);
+    try {
+      await prayersAPI.submit({
+        requester_name: formData.anonymous ? 'Anonymous' : formData.name,
+        request_text: formData.request,
+        is_anonymous: formData.anonymous,
+        email: formData.email,
+        phone: formData.phone
+      });
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFormData({ name: '', email: '', phone: '', request: '', anonymous: false });
+      }, 3000);
+    } catch (error) {
+      console.error('Error submitting prayer request:', error);
+      alert('Failed to submit prayer request. Please try again.');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="prayers-page">
+        <Header />
+        <div style={{ padding: '3rem', textAlign: 'center' }}>Loading...</div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="prayers-page">
@@ -42,8 +88,8 @@ const Prayers = () => {
             <div className="prayer-icon-hero">
               <FaPrayingHands />
             </div>
-            <h1 className="page-title">Prayer Requests</h1>
-            <p className="page-subtitle">We believe in the power of prayer</p>
+            <h1 className="page-title">{getValue('hero_title', 'Prayer Requests')}</h1>
+            <p className="page-subtitle">{getValue('hero_subtitle', 'We believe in the power of prayer')}</p>
           </div>
         </div>
       </section>
@@ -51,16 +97,9 @@ const Prayers = () => {
       <section className="prayers-intro">
         <div className="container">
           <div className="intro-content">
-            <h2>Share Your Prayer Request</h2>
-            <p>
-              We believe in the power of prayer. Share your prayer requests with us, 
-              and our community will lift you up in prayer. Whether you're facing 
-              challenges, celebrating victories, or seeking guidance, we're here for you.
-            </p>
-            <p>
-              Your prayer requests are confidential and will be shared with our prayer 
-              team. You can choose to remain anonymous if you prefer.
-            </p>
+            <h2>{getValue('intro_title', 'Share Your Prayer Request')}</h2>
+            <p>{getValue('intro_text1', 'We believe in the power of prayer. Share your prayer requests with us, and our community will lift you up in prayer. Whether you\'re facing challenges, celebrating victories, or seeking guidance, we\'re here for you.')}</p>
+            <p>{getValue('intro_text2', 'Your prayer requests are confidential and will be shared with our prayer team. You can choose to remain anonymous if you prefer.')}</p>
           </div>
         </div>
       </section>
@@ -71,8 +110,8 @@ const Prayers = () => {
             {submitted ? (
               <div className="success-message">
                 <FaCheckCircle />
-                <h3>Thank You!</h3>
-                <p>Your prayer request has been submitted. Our prayer team will be lifting you up.</p>
+                <h3>{getValue('success_title', 'Thank You!')}</h3>
+                <p>{getValue('success_message', 'Your prayer request has been submitted. Our prayer team will be lifting you up.')}</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="prayer-form">
@@ -98,6 +137,17 @@ const Prayers = () => {
                     onChange={handleChange}
                     required
                     placeholder="Enter your email"
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="phone">Phone Number</label>
+                  <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="Enter your phone number (optional)"
                   />
                 </div>
                 <div className="form-group">
@@ -137,18 +187,18 @@ const Prayers = () => {
           <div className="info-grid">
             <div className="info-card">
               <div className="info-icon"><FaPrayingHands /></div>
-              <h3>Prayer Team</h3>
-              <p>Our dedicated prayer team prays over every request submitted.</p>
+              <h3>{getValue('info_card1_title', 'Prayer Team')}</h3>
+              <p>{getValue('info_card1_description', 'Our dedicated prayer team prays over every request submitted.')}</p>
             </div>
             <div className="info-card">
               <div className="info-icon"><FaHeart /></div>
-              <h3>Confidential</h3>
-              <p>All prayer requests are kept confidential and handled with care.</p>
+              <h3>{getValue('info_card2_title', 'Confidential')}</h3>
+              <p>{getValue('info_card2_description', 'All prayer requests are kept confidential and handled with care.')}</p>
             </div>
             <div className="info-card">
               <div className="info-icon"><FaCheckCircle /></div>
-              <h3>Response</h3>
-              <p>We'll follow up with you and keep you in our prayers.</p>
+              <h3>{getValue('info_card3_title', 'Response')}</h3>
+              <p>{getValue('info_card3_description', 'We\'ll follow up with you and keep you in our prayers.')}</p>
             </div>
           </div>
         </div>

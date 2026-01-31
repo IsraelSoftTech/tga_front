@@ -264,6 +264,20 @@ export const prayersAPI = {
   getAll: async () => {
     return apiRequest('/prayers');
   },
+
+  // Mark prayer request as answered
+  markAsAnswered: async (id) => {
+    return apiRequest(`/prayers/${id}/answered`, {
+      method: 'PUT',
+    });
+  },
+
+  // Delete prayer request
+  delete: async (id) => {
+    return apiRequest(`/prayers/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
 
 // ============================================
@@ -282,6 +296,20 @@ export const contactAPI = {
   // Get all messages (admin only)
   getAll: async () => {
     return apiRequest('/contact');
+  },
+
+  // Mark message as read
+  markAsRead: async (id) => {
+    return apiRequest(`/contact/${id}/read`, {
+      method: 'PUT',
+    });
+  },
+
+  // Delete contact message
+  delete: async (id) => {
+    return apiRequest(`/contact/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 

@@ -163,7 +163,7 @@
   box-shadow: 0 0 10px rgba(34, 197, 94, 0.6);
 }
 
-/* Forest green overlay - maintains the current forest green color */
+/* Forest green overlay - very light to show image well */
 .hero-section::after {
   content: '';
   position: absolute;
@@ -171,7 +171,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(45, 80, 22, 0.75) 0%, rgba(31, 58, 15, 0.8) 50%, rgba(45, 80, 22, 0.75) 100%);
+  background: linear-gradient(135deg, rgba(45, 80, 22, 0.2) 0%, rgba(31, 58, 15, 0.25) 50%, rgba(45, 80, 22, 0.2) 100%);
   z-index: 1;
 }
 

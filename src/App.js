@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -19,9 +19,31 @@ import AdminPrayers from './pages/AdminPrayers';
 import AdminContact from './pages/AdminContact';
 import AdminMembership from './pages/AdminMembership';
 import AdminGiving from './pages/AdminGiving';
+import { homeAPI } from './api';
 import './App.css';
 
 function App() {
+  // Load and set favicon dynamically
+  useEffect(() => {
+    const loadFavicon = async () => {
+      try {
+        const response = await homeAPI.getContent();
+        if (response.success && response.data?.site?.favicon?.value) {
+          const faviconUrl = response.data.site.favicon.value;
+          // Update favicon link
+          let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+          link.type = 'image/x-icon';
+          link.rel = 'shortcut icon';
+          link.href = faviconUrl;
+          document.getElementsByTagName('head')[0].appendChild(link);
+        }
+      } catch (error) {
+        console.error('Error loading favicon:', error);
+      }
+    };
+    loadFavicon();
+  }, []);
+
   return (
     <Router>
       <Routes>
