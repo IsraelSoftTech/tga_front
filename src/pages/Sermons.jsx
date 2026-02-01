@@ -19,6 +19,7 @@ const Sermons = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [loadingReactions, setLoadingReactions] = useState({});
+  const [error, setError] = useState(null);
   const fetchingSermonRef = useRef(false); // Track if we're currently fetching a sermon by ID
 
   useEffect(() => {
@@ -37,6 +38,7 @@ const Sermons = () => {
   const loadSermons = async () => {
     try {
       setLoading(true);
+      setError(null);
       const response = await sermonsAPI.getAll();
       if (response.success) {
         const sermonsData = response.data || [];
@@ -46,9 +48,12 @@ const Sermons = () => {
           loadReactions(sermon.id);
           loadComments(sermon.id);
         });
+      } else {
+        setError('Failed to load sermons. Please try again later.');
       }
     } catch (error) {
       console.error('Error loading sermons:', error);
+      setError('Error loading sermons. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -92,18 +97,27 @@ const Sermons = () => {
 
   // Format sermon for display (convert database format to display format)
   const formatSermonForDisplay = (sermon) => {
-    const type = getSermonType(sermon);
-    return {
-      id: sermon.id,
-      date: sermon.date,
-      topic: sermon.title,
-      anchorScripture: '', // Not in database schema, can be added later
-      speaker: sermon.speaker || '',
-      type: type,
-      content: type === 'video' ? sermon.video_url : type === 'audio' ? sermon.audio_url : sermon.description,
-      description: sermon.description || '',
-      thumbnail_url: sermon.thumbnail_url || null
-    };
+    if (!sermon || !sermon.id) {
+      console.error('Invalid sermon data:', sermon);
+      return null;
+    }
+    try {
+      const type = getSermonType(sermon);
+      return {
+        id: sermon.id,
+        date: sermon.date,
+        topic: sermon.title || 'Untitled Sermon',
+        anchorScripture: '', // Not in database schema, can be added later
+        speaker: sermon.speaker || '',
+        type: type,
+        content: type === 'video' ? sermon.video_url : type === 'audio' ? sermon.audio_url : sermon.description,
+        description: sermon.description || '',
+        thumbnail_url: sermon.thumbnail_url || null
+      };
+    } catch (error) {
+      console.error('Error formatting sermon:', error, sermon);
+      return null;
+    }
   };
 
   // Initialize reactions for each sermon if not already set
@@ -182,70 +196,78 @@ const Sermons = () => {
   };
 
   // Check URL for sermon parameter and open the sermon modal
+  // This effect runs when searchParams change OR when sermons finish loading
   useEffect(() => {
     const sermonId = searchParams.get('sermon');
-    if (sermonId) {
-      const id = parseInt(sermonId);
-      if (isNaN(id)) {
-        // Invalid sermon ID, remove from URL
+    if (!sermonId) {
+      fetchingSermonRef.current = false;
+      return;
+    }
+
+    const id = parseInt(sermonId);
+    if (isNaN(id)) {
+      // Invalid sermon ID, remove from URL
+      setSearchParams({});
+      return;
+    }
+
+    // First, try to find in already loaded sermons
+    if (sermons.length > 0 && !fetchingSermonRef.current) {
+      const formattedSermons = sermons.map(formatSermonForDisplay);
+      const sermon = formattedSermons.find(s => s.id === id);
+      if (sermon) {
+        setSelectedSermon(sermon);
+        // Load reactions and comments for this sermon
+        loadReactions(id);
+        loadComments(id);
+        // Remove the query parameter from URL after opening
         setSearchParams({});
+        fetchingSermonRef.current = false;
         return;
       }
-
-      // First, try to find in already loaded sermons
-      if (sermons.length > 0) {
-        const formattedSermons = sermons.map(formatSermonForDisplay);
-        const sermon = formattedSermons.find(s => s.id === id);
-        if (sermon) {
-          setSelectedSermon(sermon);
-          // Remove the query parameter from URL after opening
-          setSearchParams({});
-          fetchingSermonRef.current = false;
-          return;
-        }
-      }
-
-      // If not found in loaded sermons and not already fetching, fetch directly by ID
-      // This handles the case when someone clicks a shared link
-      if (!fetchingSermonRef.current) {
-        fetchingSermonRef.current = true;
-        const fetchSermonById = async () => {
-          try {
-            console.log('🔍 Fetching sermon by ID:', id);
-            const response = await sermonsAPI.getById(id);
-            console.log('📥 Sermon API response:', response);
-            if (response.success && response.data) {
-              const sermon = formatSermonForDisplay(response.data);
-              console.log('✅ Sermon found, opening modal:', sermon);
-              setSelectedSermon(sermon);
-              // Load reactions and comments for this sermon
-              await loadReactions(id);
-              await loadComments(id);
-              // Remove the query parameter from URL after opening
-              setSearchParams({});
-            } else {
-              // Sermon not found
-              console.error('❌ Sermon not found. Response:', response);
-              setSearchParams({});
-            }
-          } catch (error) {
-            console.error('❌ Error fetching sermon by ID:', error);
-            // Remove the query parameter on error
-            setSearchParams({});
-          } finally {
-            fetchingSermonRef.current = false;
-          }
-        };
-
-        fetchSermonById();
-      }
-    } else {
-      // No sermon parameter, reset the ref
-      fetchingSermonRef.current = false;
     }
-  }, [searchParams, setSearchParams, sermons]);
 
-  const formattedSermons = sermons.map(formatSermonForDisplay);
+    // If not found in loaded sermons and not already fetching, fetch directly by ID
+    // This handles the case when someone clicks a shared link
+    if (!fetchingSermonRef.current) {
+      fetchingSermonRef.current = true;
+      const fetchSermonById = async () => {
+        try {
+          console.log('🔍 Fetching sermon by ID:', id);
+          const response = await sermonsAPI.getById(id);
+          console.log('📥 Sermon API response:', response);
+          if (response.success && response.data) {
+            const sermon = formatSermonForDisplay(response.data);
+            console.log('✅ Sermon found, opening modal:', sermon);
+            setSelectedSermon(sermon);
+            // Load reactions and comments for this sermon
+            await loadReactions(id);
+            await loadComments(id);
+            // Remove the query parameter from URL after opening
+            setSearchParams({});
+          } else {
+            // Sermon not found
+            console.error('❌ Sermon not found. Response:', response);
+            setSearchParams({});
+          }
+        } catch (error) {
+          console.error('❌ Error fetching sermon by ID:', error);
+          // Remove the query parameter on error
+          setSearchParams({});
+        } finally {
+          fetchingSermonRef.current = false;
+        }
+      };
+
+      fetchSermonById();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, sermons]);
+
+  // Safely format sermons, handling empty array and filtering out nulls
+  const formattedSermons = Array.isArray(sermons) && sermons.length > 0
+    ? sermons.map(formatSermonForDisplay).filter(sermon => sermon !== null)
+    : [];
   const filteredSermons = filter === 'all' 
     ? formattedSermons 
     : formattedSermons.filter(sermon => sermon.type === filter);
@@ -305,11 +327,19 @@ const Sermons = () => {
 
       <section className="sermons-content">
         <div className="container">
-          {formattedSermons.length === 0 ? (
+          {error && (
+            <div className="error-message" style={{ padding: '20px', color: 'red', textAlign: 'center', marginBottom: '20px' }}>
+              <p>{error}</p>
+              <button onClick={loadSermons} style={{ marginTop: '10px', padding: '8px 16px', cursor: 'pointer' }}>
+                Try Again
+              </button>
+            </div>
+          )}
+          {!error && formattedSermons.length === 0 ? (
             <div className="empty-sermons">
               <p>No sermons available at this time. Please check back later.</p>
             </div>
-          ) : (
+          ) : !error ? (
             <>
               <div className="sermons-filters">
             <button 
