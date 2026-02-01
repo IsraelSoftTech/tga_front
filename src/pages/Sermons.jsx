@@ -335,11 +335,12 @@ const Sermons = () => {
               </button>
             </div>
           )}
-          {!error && formattedSermons.length === 0 ? (
+          {!error && formattedSermons.length === 0 && (
             <div className="empty-sermons">
               <p>No sermons available at this time. Please check back later.</p>
             </div>
-          ) : !error ? (
+          )}
+          {!error && formattedSermons.length > 0 && (
             <>
               <div className="sermons-filters">
             <button 
