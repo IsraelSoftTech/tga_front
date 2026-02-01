@@ -242,6 +242,7 @@ const Sermons = () => {
     );
   }
 
+  // Always render the page structure, even if there are errors
   return (
     <div className="sermons-page">
       <Header />
