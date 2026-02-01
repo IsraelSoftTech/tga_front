@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { FaCalendarAlt, FaUser, FaBook, FaVideo, FaHeadphones, FaFileAlt, FaThumbsUp, FaHeart, FaComment, FaShare } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -7,7 +6,6 @@ import { sermonsAPI } from '../api';
 import './Sermons.css';
 
 const Sermons = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSermon, setSelectedSermon] = useState(null);
   const [filter, setFilter] = useState('all'); // all, video, audio, text
   const [sermons, setSermons] = useState([]);
@@ -20,7 +18,6 @@ const Sermons = () => {
   const [shareUrl, setShareUrl] = useState('');
   const [loadingReactions, setLoadingReactions] = useState({});
   const [error, setError] = useState(null);
-  const fetchingSermonRef = useRef(false); // Track if we're currently fetching a sermon by ID
 
   useEffect(() => {
     loadSermons();
@@ -165,10 +162,10 @@ const Sermons = () => {
     }
   };
 
-  // Handle share
+  // Handle share - simple link to sermons page
   const handleShare = (e, sermon) => {
     e.stopPropagation();
-    const url = `${window.location.origin}/sermons?sermon=${sermon.id}`;
+    const url = `${window.location.origin}/sermons`;
     setShareUrl(url);
     setShowShareModal(true);
     
@@ -194,75 +191,6 @@ const Sermons = () => {
       console.error('Error adding comment:', error);
     }
   };
-
-  // Check URL for sermon parameter and open the sermon modal
-  // This effect runs when searchParams change OR when sermons finish loading
-  useEffect(() => {
-    const sermonId = searchParams.get('sermon');
-    if (!sermonId) {
-      fetchingSermonRef.current = false;
-      return;
-    }
-
-    const id = parseInt(sermonId);
-    if (isNaN(id)) {
-      // Invalid sermon ID, remove from URL
-      setSearchParams({});
-      return;
-    }
-
-    // First, try to find in already loaded sermons
-    if (sermons.length > 0 && !fetchingSermonRef.current) {
-      const formattedSermons = sermons.map(formatSermonForDisplay);
-      const sermon = formattedSermons.find(s => s.id === id);
-      if (sermon) {
-        setSelectedSermon(sermon);
-        // Load reactions and comments for this sermon
-        loadReactions(id);
-        loadComments(id);
-        // Remove the query parameter from URL after opening
-        setSearchParams({});
-        fetchingSermonRef.current = false;
-        return;
-      }
-    }
-
-    // If not found in loaded sermons and not already fetching, fetch directly by ID
-    // This handles the case when someone clicks a shared link
-    if (!fetchingSermonRef.current) {
-      fetchingSermonRef.current = true;
-      const fetchSermonById = async () => {
-        try {
-          console.log('🔍 Fetching sermon by ID:', id);
-          const response = await sermonsAPI.getById(id);
-          console.log('📥 Sermon API response:', response);
-          if (response.success && response.data) {
-            const sermon = formatSermonForDisplay(response.data);
-            console.log('✅ Sermon found, opening modal:', sermon);
-            setSelectedSermon(sermon);
-            // Load reactions and comments for this sermon
-            await loadReactions(id);
-            await loadComments(id);
-            // Remove the query parameter from URL after opening
-            setSearchParams({});
-          } else {
-            // Sermon not found
-            console.error('❌ Sermon not found. Response:', response);
-            setSearchParams({});
-          }
-        } catch (error) {
-          console.error('❌ Error fetching sermon by ID:', error);
-          // Remove the query parameter on error
-          setSearchParams({});
-        } finally {
-          fetchingSermonRef.current = false;
-        }
-      };
-
-      fetchSermonById();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, sermons]);
 
   // Safely format sermons, handling empty array and filtering out nulls
   const formattedSermons = Array.isArray(sermons) && sermons.length > 0
