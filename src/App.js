@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import About from './pages/About';
 import Programs from './pages/Programs';
@@ -66,6 +66,8 @@ function App() {
         <Route path="/admin/contact" element={<AdminContact />} />
         <Route path="/admin/membership" element={<AdminMembership />} />
         <Route path="/admin/giving" element={<AdminGiving />} />
+        {/* Handle /index.html redirects from server - redirect to home */}
+        <Route path="/index.html" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );
