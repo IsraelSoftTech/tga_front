@@ -48,6 +48,40 @@
           console.log('🔧 Runtime config: Development API URL set to', window.__API_CONFIG__.apiUrl);
         }
       })();
+
+      // Handle server redirects from /sermons (or other routes) to /index.html
+      // If we're on /index.html, try to restore the original path
+      (function() {
+        if (window.location.pathname === '/index.html') {
+          // Check sessionStorage for stored path (set before redirect if possible)
+          var storedPath = sessionStorage.getItem('originalPath');
+          if (storedPath) {
+            sessionStorage.removeItem('originalPath');
+            window.history.replaceState({}, '', storedPath);
+            return; // Let React Router handle it
+          }
+          
+          // Check if there's a referrer from the same origin
+          var referrer = document.referrer;
+          if (referrer) {
+            try {
+              var referrerUrl = new URL(referrer);
+              var currentUrl = new URL(window.location.href);
+              // If referrer is from same origin and has a different path
+              if (referrerUrl.origin === currentUrl.origin && referrerUrl.pathname !== '/' && referrerUrl.pathname !== '/index.html') {
+                // Restore the original path
+                window.history.replaceState({}, '', referrerUrl.pathname + currentUrl.search + currentUrl.hash);
+                return; // Let React Router handle it
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          
+          // If no referrer or can't determine path, redirect to home
+          window.history.replaceState({}, '', '/');
+        }
+      })();
     </script>
   </head>
   <body>

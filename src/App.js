@@ -66,7 +66,7 @@ function App() {
         <Route path="/admin/contact" element={<AdminContact />} />
         <Route path="/admin/membership" element={<AdminMembership />} />
         <Route path="/admin/giving" element={<AdminGiving />} />
-        {/* Handle /index.html redirects from server - redirect to home */}
+        {/* Handle /index.html - should be handled by script in index.html before React loads */}
         <Route path="/index.html" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
