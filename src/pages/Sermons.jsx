@@ -211,9 +211,12 @@ const Sermons = () => {
         fetchingSermonRef.current = true;
         const fetchSermonById = async () => {
           try {
+            console.log('🔍 Fetching sermon by ID:', id);
             const response = await sermonsAPI.getById(id);
+            console.log('📥 Sermon API response:', response);
             if (response.success && response.data) {
               const sermon = formatSermonForDisplay(response.data);
+              console.log('✅ Sermon found, opening modal:', sermon);
               setSelectedSermon(sermon);
               // Load reactions and comments for this sermon
               await loadReactions(id);
@@ -221,11 +224,12 @@ const Sermons = () => {
               // Remove the query parameter from URL after opening
               setSearchParams({});
             } else {
-              // Sermon not found, remove invalid parameter
+              // Sermon not found
+              console.error('❌ Sermon not found. Response:', response);
               setSearchParams({});
             }
           } catch (error) {
-            console.error('Error fetching sermon by ID:', error);
+            console.error('❌ Error fetching sermon by ID:', error);
             // Remove the query parameter on error
             setSearchParams({});
           } finally {
