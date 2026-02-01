@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FaCalendarAlt, FaUser, FaBook, FaVideo, FaHeadphones, FaFileAlt, FaThumbsUp, FaHeart, FaComment, FaShare } from 'react-icons/fa';
 import Header from '../components/Header';
@@ -19,6 +19,7 @@ const Sermons = () => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareUrl, setShareUrl] = useState('');
   const [loadingReactions, setLoadingReactions] = useState({});
+  const fetchingSermonRef = useRef(false); // Track if we're currently fetching a sermon by ID
 
   useEffect(() => {
     loadSermons();
@@ -183,14 +184,60 @@ const Sermons = () => {
   // Check URL for sermon parameter and open the sermon modal
   useEffect(() => {
     const sermonId = searchParams.get('sermon');
-    if (sermonId && sermons.length > 0) {
-      const formattedSermons = sermons.map(formatSermonForDisplay);
-      const sermon = formattedSermons.find(s => s.id === parseInt(sermonId));
-      if (sermon) {
-        setSelectedSermon(sermon);
-        // Remove the query parameter from URL after opening
+    if (sermonId) {
+      const id = parseInt(sermonId);
+      if (isNaN(id)) {
+        // Invalid sermon ID, remove from URL
         setSearchParams({});
+        return;
       }
+
+      // First, try to find in already loaded sermons
+      if (sermons.length > 0) {
+        const formattedSermons = sermons.map(formatSermonForDisplay);
+        const sermon = formattedSermons.find(s => s.id === id);
+        if (sermon) {
+          setSelectedSermon(sermon);
+          // Remove the query parameter from URL after opening
+          setSearchParams({});
+          fetchingSermonRef.current = false;
+          return;
+        }
+      }
+
+      // If not found in loaded sermons and not already fetching, fetch directly by ID
+      // This handles the case when someone clicks a shared link
+      if (!fetchingSermonRef.current) {
+        fetchingSermonRef.current = true;
+        const fetchSermonById = async () => {
+          try {
+            const response = await sermonsAPI.getById(id);
+            if (response.success && response.data) {
+              const sermon = formatSermonForDisplay(response.data);
+              setSelectedSermon(sermon);
+              // Load reactions and comments for this sermon
+              await loadReactions(id);
+              await loadComments(id);
+              // Remove the query parameter from URL after opening
+              setSearchParams({});
+            } else {
+              // Sermon not found, remove invalid parameter
+              setSearchParams({});
+            }
+          } catch (error) {
+            console.error('Error fetching sermon by ID:', error);
+            // Remove the query parameter on error
+            setSearchParams({});
+          } finally {
+            fetchingSermonRef.current = false;
+          }
+        };
+
+        fetchSermonById();
+      }
+    } else {
+      // No sermon parameter, reset the ref
+      fetchingSermonRef.current = false;
     }
   }, [searchParams, setSearchParams, sermons]);
 
