@@ -9,7 +9,8 @@ import {
   FaHandsHelping,
   FaCalendarAlt,
   FaClock,
-  FaMapMarkerAlt
+  FaMapMarkerAlt,
+  FaShare
 } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -19,6 +20,8 @@ import './Programs.css';
 const Programs = () => {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
 
   const loadPrograms = async () => {
     try {
@@ -73,6 +76,21 @@ const Programs = () => {
       return <FaHandsHelping />;
     }
     return <FaBook />; // Default icon
+  };
+
+  // Handle share - simple link to programs page
+  const handleShare = (e, program) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/programs`;
+    setShareUrl(url);
+    setShowShareModal(true);
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(url).then(() => {
+      // Optional: Show a toast notification
+    }).catch(() => {
+      // Fallback if clipboard API fails
+    });
   };
 
   if (loading) {
@@ -146,6 +164,16 @@ const Programs = () => {
                     </div>
                     {program.description && <p>{program.description}</p>}
                   </div>
+                  <div className="program-actions">
+                    <button 
+                      className="action-btn share-btn"
+                      onClick={(e) => handleShare(e, program)}
+                      title="Share"
+                    >
+                      <FaShare />
+                      <span>Share</span>
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -162,6 +190,61 @@ const Programs = () => {
           </div>
         </div>
       </section>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="share-modal-overlay" onClick={() => setShowShareModal(false)}>
+          <div className="share-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowShareModal(false)}>×</button>
+            <h3>Share This Program</h3>
+            <p className="share-description">Copy this link to share on any social media platform:</p>
+            <div className="share-url-container">
+              <input 
+                type="text" 
+                className="share-url-input" 
+                value={shareUrl} 
+                readOnly
+                onClick={(e) => e.target.select()}
+              />
+              <button 
+                className="copy-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(shareUrl);
+                  // You could add a toast notification here
+                }}
+              >
+                Copy
+              </button>
+            </div>
+            <div className="social-share-buttons">
+              <a 
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-share-btn facebook"
+              >
+                Share on Facebook
+              </a>
+              <a 
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Check out this church program!')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-share-btn twitter"
+              >
+                Share on Twitter
+              </a>
+              <a 
+                href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="social-share-btn whatsapp"
+              >
+                Share on WhatsApp
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

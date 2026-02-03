@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaCalendarAlt, FaUser, FaBook, FaVideo, FaHeadphones, FaFileAlt, FaThumbsUp, FaHeart, FaComment, FaShare } from 'react-icons/fa';
+import { FaCalendarAlt, FaUser, FaBook, FaVideo, FaHeadphones, FaFileAlt, FaThumbsUp, FaHeart, FaComment, FaShare, FaEye } from 'react-icons/fa';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { sermonsAPI } from '../api';
@@ -18,10 +18,18 @@ const Sermons = () => {
   const [shareUrl, setShareUrl] = useState('');
   const [loadingReactions, setLoadingReactions] = useState({});
   const [error, setError] = useState(null);
+  const [sermonViews, setSermonViews] = useState({}); // { sermonId: viewCount }
 
   useEffect(() => {
     loadSermons();
   }, []);
+
+  // Track view when sermon modal opens
+  useEffect(() => {
+    if (selectedSermon) {
+      trackSermonView(selectedSermon.id);
+    }
+  }, [selectedSermon?.id]);
 
   // Refresh sermons when window regains focus
   useEffect(() => {
@@ -100,6 +108,9 @@ const Sermons = () => {
     }
     try {
       const type = getSermonType(sermon);
+      const viewCount = sermon.view_count || 0;
+      // Store view count in state
+      setSermonViews(prev => ({ ...prev, [sermon.id]: viewCount }));
       return {
         id: sermon.id,
         date: sermon.date,
@@ -109,7 +120,8 @@ const Sermons = () => {
         type: type,
         content: type === 'video' ? sermon.video_url : type === 'audio' ? sermon.audio_url : sermon.description,
         description: sermon.description || '',
-        thumbnail_url: sermon.thumbnail_url || null
+        thumbnail_url: sermon.thumbnail_url || null,
+        view_count: viewCount
       };
     } catch (error) {
       console.error('Error formatting sermon:', error, sermon);
@@ -190,6 +202,27 @@ const Sermons = () => {
     } catch (error) {
       console.error('Error adding comment:', error);
     }
+  };
+
+  // Track sermon view when modal opens
+  const trackSermonView = async (sermonId) => {
+    try {
+      const response = await sermonsAPI.trackView(sermonId);
+      if (response.success && response.data) {
+        // Update view count in state
+        setSermonViews(prev => ({
+          ...prev,
+          [sermonId]: response.data.view_count
+        }));
+      }
+    } catch (error) {
+      console.error('Error tracking sermon view:', error);
+    }
+  };
+
+  // Get view count for a sermon
+  const getViewCount = (sermonId) => {
+    return sermonViews[sermonId] || 0;
   };
 
   // Safely format sermons, handling empty array and filtering out nulls
@@ -388,6 +421,14 @@ const Sermons = () => {
                     >
                       <FaShare />
                     </button>
+                    <button 
+                      className="action-btn view-btn"
+                      title="Views"
+                      style={{ cursor: 'default' }}
+                    >
+                      <FaEye />
+                      <span>{getViewCount(sermon.id)}</span>
+                    </button>
                   </div>
                   
                   <button className="sermon-view-btn">View Sermon</button>
@@ -432,6 +473,14 @@ const Sermons = () => {
                 >
                   <FaHeart />
                   <span>{getReactions(selectedSermon.id).loves}</span>
+                </button>
+                <button 
+                  className="action-btn view-btn"
+                  title="Views"
+                  style={{ cursor: 'default' }}
+                >
+                  <FaEye />
+                  <span>{getViewCount(selectedSermon.id)}</span>
                 </button>
                 <button 
                   className="action-btn share-btn"

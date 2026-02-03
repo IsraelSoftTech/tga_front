@@ -245,6 +245,13 @@ export const sermonsAPI = {
   getReactions: async (sermonId) => {
     return apiRequest(`/sermons/${sermonId}/reactions`);
   },
+
+  // Track sermon view
+  trackView: async (sermonId) => {
+    return apiRequest(`/sermons/${sermonId}/view`, {
+      method: 'POST',
+    });
+  },
 };
 
 // ============================================
