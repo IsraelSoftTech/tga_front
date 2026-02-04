@@ -25,23 +25,37 @@ import './App.css';
 function App() {
   // Load and set favicon dynamically
   useEffect(() => {
+    let isMounted = true;
     const loadFavicon = async () => {
       try {
         const response = await homeAPI.getContent();
+        if (!isMounted) return;
+        
         if (response.success && response.data?.site?.favicon?.value) {
           const faviconUrl = response.data.site.favicon.value;
-          // Update favicon link
-          let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
+          // Remove existing favicon links to avoid duplicates
+          const existingLinks = document.querySelectorAll("link[rel*='icon']");
+          existingLinks.forEach(link => link.remove());
+          
+          // Create and add new favicon link
+          const link = document.createElement('link');
           link.type = 'image/x-icon';
           link.rel = 'shortcut icon';
           link.href = faviconUrl;
           document.getElementsByTagName('head')[0].appendChild(link);
         }
       } catch (error) {
-        console.error('Error loading favicon:', error);
+        // Silently fail - favicon is not critical
+        if (isMounted) {
+          console.error('Error loading favicon:', error);
+        }
       }
     };
     loadFavicon();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
