@@ -24,11 +24,28 @@ const Sermons = () => {
     loadSermons();
   }, []);
 
+  // Initialize view counts from loaded sermons (only if not already set)
+  useEffect(() => {
+    if (sermons.length > 0) {
+      setSermonViews(prev => {
+        const updated = { ...prev };
+        sermons.forEach(sermon => {
+          // Only set if not already in state (to preserve updated counts)
+          if (updated[sermon.id] === undefined && sermon.view_count !== undefined) {
+            updated[sermon.id] = sermon.view_count || 0;
+          }
+        });
+        return updated;
+      });
+    }
+  }, [sermons]);
+
   // Track view when sermon modal opens
   useEffect(() => {
     if (selectedSermon) {
       trackSermonView(selectedSermon.id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSermon?.id]);
 
   // Refresh sermons when window regains focus
@@ -109,8 +126,8 @@ const Sermons = () => {
     try {
       const type = getSermonType(sermon);
       const viewCount = sermon.view_count || 0;
-      // Store view count in state
-      setSermonViews(prev => ({ ...prev, [sermon.id]: viewCount }));
+      // Don't set state here - it causes infinite re-renders!
+      // View count will be updated via trackSermonView when modal opens
       return {
         id: sermon.id,
         date: sermon.date,
@@ -220,9 +237,15 @@ const Sermons = () => {
     }
   };
 
-  // Get view count for a sermon
+  // Get view count for a sermon (use state if updated, otherwise use formatted sermon data)
   const getViewCount = (sermonId) => {
-    return sermonViews[sermonId] || 0;
+    // If we have an updated view count in state, use it
+    if (sermonViews[sermonId] !== undefined) {
+      return sermonViews[sermonId];
+    }
+    // Otherwise, get it from the formatted sermon
+    const sermon = formattedSermons.find(s => s.id === sermonId);
+    return sermon?.view_count || 0;
   };
 
   // Safely format sermons, handling empty array and filtering out nulls
