@@ -1,0 +1,9 @@
+{
+  "short_name": "Town Green Church",
+  "name": "Town Green Church",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

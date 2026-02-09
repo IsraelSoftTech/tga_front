@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="Town Green Church - Welcome to our community"
+    />
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <title>Fgm Town Green B'da</title>
+    <!-- Runtime API Configuration -->
+    <!-- This script runs before React loads, allowing runtime API URL configuration -->
+    <script>
+      // Initialize API configuration object
+      window.__API_CONFIG__ = window.__API_CONFIG__ || {};
+      
+      // Set API URL - this can be overridden by environment variables at build time
+      // but will work even if env vars aren't available during build
+      (function() {
+        // Check if we're in production (not localhost)
+        var hostname = window.location.hostname;
+        var isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '';
+        
+        if (!isDevelopment) {
+          // Production: Use the production API URL
+          window.__API_CONFIG__.apiUrl = 'https://tga.api.farmsolutionss.com/api';
+          console.log('🔧 Runtime config: Production API URL set to', window.__API_CONFIG__.apiUrl);
+        } else {
+          // Development: Use local API
+          window.__API_CONFIG__.apiUrl = 'http://localhost:5000/api';
+          console.log('🔧 Runtime config: Development API URL set to', window.__API_CONFIG__.apiUrl);
+        }
+      })();
+
+      // Handle server redirects from /sermons (or other routes) to /index.html
+      // If we're on /index.html, try to restore the original path
+      (function() {
+        if (window.location.pathname === '/index.html') {
+          // Check sessionStorage for stored path (set before redirect if possible)
+          var storedPath = sessionStorage.getItem('originalPath');
+          if (storedPath) {
+            sessionStorage.removeItem('originalPath');
+            window.history.replaceState({}, '', storedPath);
+            return; // Let React Router handle it
+          }
+          
+          // Check if there's a referrer from the same origin
+          var referrer = document.referrer;
+          if (referrer) {
+            try {
+              var referrerUrl = new URL(referrer);
+              var currentUrl = new URL(window.location.href);
+              // If referrer is from same origin and has a different path
+              if (referrerUrl.origin === currentUrl.origin && referrerUrl.pathname !== '/' && referrerUrl.pathname !== '/index.html') {
+                // Restore the original path
+                window.history.replaceState({}, '', referrerUrl.pathname + currentUrl.search + currentUrl.hash);
+                return; // Let React Router handle it
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+          
+          // If no referrer or can't determine path, redirect to home
+          window.history.replaceState({}, '', '/');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
+  </body>
+</html>
